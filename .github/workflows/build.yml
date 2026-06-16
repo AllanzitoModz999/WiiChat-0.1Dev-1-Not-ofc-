@@ -12,8 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build via devkitPro Docker (CORRETO)
+      - name: Build (devkitPro container)
         run: |
+          docker pull devkitpro/devkitppc:latest
           docker run --rm \
             -v ${{ github.workspace }}:/project \
             -w /project \
