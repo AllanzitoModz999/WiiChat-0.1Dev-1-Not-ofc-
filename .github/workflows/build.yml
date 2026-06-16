@@ -12,18 +12,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar dependências
+      - name: Install devkitPro (CORRETO)
         run: |
           sudo apt-get update
-          sudo apt-get install -y make git curl
+          sudo apt-get install -y wget
 
-      - name: Instalar devkitPro
-        run: |
-          echo "baixando devkitPro..."
-          curl -L https://apt.devkitpro.org/install-devkitpro-pacman | sudo bash
-          sudo dkp-pacman -S --noconfirm gamecube-dev wii-dev
+          wget https://apt.devkitpro.org/install-devkitpro-pacman
+          sudo bash install-devkitpro-pacman
 
-      - name: Exportar variáveis
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --noconfirm devkitPPC libogc wii-dev
+
+      - name: Set env
         run: |
           echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
           echo "DEVKITPPC=/opt/devkitpro/devkitPPC" >> $GITHUB_ENV
@@ -32,7 +32,7 @@ jobs:
       - name: Build
         run: make
 
-      - name: Upload boot.dol
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: WiiChat
