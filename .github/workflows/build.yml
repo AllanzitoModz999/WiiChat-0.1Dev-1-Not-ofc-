@@ -43,3 +43,5 @@ jobs:
           name: wiichat-boot-dol
           path: boot.dol
           retention-days: 30
+
+        # trigger refresh
