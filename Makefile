@@ -1,51 +1,56 @@
 #-------------------------------------------------------------------------------
 # WiiChat – Makefile
-# Requires devkitPPC + libogc (devkitPro)
+# Built against devkitPPC + libogc (devkitPro)
 #-------------------------------------------------------------------------------
+.SUFFIXES:
+#-------------------------------------------------------------------------------
+ifeq ($(strip $(DEVKITPPC)),)
+$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
+endif
 
-#-- Project identity -----------------------------------------------------------
+include $(DEVKITPPC)/wii_rules
+
+#-------------------------------------------------------------------------------
+# Project settings
+#-------------------------------------------------------------------------------
 TARGET   := boot
 BUILD    := build
 SOURCES  := source
-INCLUDES := include
+INCLUDES :=
+DATA     :=
 
-#-- App metadata (used by wiiload / HBC meta.xml) ------------------------------
-APP_NAME    := WiiChat
-APP_VERSION := 0.1-dev1
-APP_AUTHOR  := WiiChat Contributors
-
-#-- Compiler flags -------------------------------------------------------------
-CFLAGS   := -g -O2 -Wall -Wextra \
-            -DAPP_NAME=\"$(APP_NAME)\" \
-            -DAPP_VERSION=\"$(APP_VERSION)\"
+#-------------------------------------------------------------------------------
+# Code-generation options
+#-------------------------------------------------------------------------------
+CFLAGS   := -g -O2 -Wall $(MACHDEP) $(INCLUDE)
 CXXFLAGS := $(CFLAGS)
-LDFLAGS  := -g
+LDFLAGS  := -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
-#-- Libraries ------------------------------------------------------------------
-#   ogc provides GX, VIDEO, PAD, WPAD, etc.
+#-------------------------------------------------------------------------------
+# Libraries
+#-------------------------------------------------------------------------------
 LIBS     := -lwiiuse -lbte -logc -lm
 
 #-------------------------------------------------------------------------------
-# devkitPro environment
+# Derived lists
 #-------------------------------------------------------------------------------
-ifeq ($(strip $(DEVKITPRO)),)
-  $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=/opt/devkitpro")
-endif
+ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-include $(DEVKITPRO)/wii_rules
+#-- We are in the project root: recurse into $(BUILD) -------------------------
 
-#-------------------------------------------------------------------------------
-# Build rules (auto-discover sources)
-#-------------------------------------------------------------------------------
-CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CXXFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-
-export VPATH := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
+export OUTPUT  := $(CURDIR)/$(TARGET)
+export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+                  $(foreach dir,$(DATA),$(CURDIR)/$(dir))
 export DEPSDIR := $(CURDIR)/$(BUILD)
 
-OFILES := $(CXXFILES:.cpp=.o) $(CFILES:.c=.o)
+CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.c)))
+CXXFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.cpp)))
+sFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.s)))
+SFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.S)))
 
-export OUTPUT := $(CURDIR)/$(TARGET)
+export OFILES := $(CXXFILES:.cpp=.o) $(CFILES:.c=.o) \
+                 $(sFILES:.s=.o) $(SFILES:.S=.o)
+
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
                   -I$(CURDIR)/$(BUILD) \
                   -I$(LIBOGC_INC)
@@ -54,22 +59,19 @@ export LIBPATHS := -L$(LIBOGC_LIB)
 
 .PHONY: all clean
 
-#-- Default target -------------------------------------------------------------
 all: $(BUILD)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 $(BUILD):
 	@mkdir -p $@
 
-#-- Clean target ---------------------------------------------------------------
 clean:
 	@echo Cleaning ...
 	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).dol
 
-#-------------------------------------------------------------------------------
-# Build rules executed inside $(BUILD)/
-#-------------------------------------------------------------------------------
-ifneq ($(notdir $(CURDIR)),$(BUILD))
+else
+
+#-- We are inside $(BUILD): compile & link ------------------------------------
 
 DEPENDS := $(OFILES:.o=.d)
 
