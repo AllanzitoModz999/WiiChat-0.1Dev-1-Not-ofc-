@@ -12,25 +12,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install devkitPro (CORRETO e ESTÁVEL)
+      - name: Build via devkitPro Docker (CORRETO)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget gnupg
-
-          wget https://apt.devkitpro.org/install-devkitpro-pacman
-          sudo bash install-devkitpro-pacman
-
-          sudo dkp-pacman -Syu --noconfirm
-          sudo dkp-pacman -S --noconfirm devkitPPC libogc wii-dev
-
-      - name: Set environment
-        run: |
-          echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-          echo "DEVKITPPC=/opt/devkitpro/devkitPPC" >> $GITHUB_ENV
-          echo "/opt/devkitpro/tools/bin" >> $GITHUB_PATH
-
-      - name: Build WiiChat
-        run: make
+          docker run --rm \
+            -v ${{ github.workspace }}:/project \
+            -w /project \
+            devkitpro/devkitppc:latest \
+            bash -c "make"
 
       - name: Upload boot.dol
         uses: actions/upload-artifact@v4
