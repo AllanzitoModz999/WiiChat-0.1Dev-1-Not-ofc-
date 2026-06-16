@@ -2,9 +2,6 @@ name: Build WiiChat
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -12,15 +9,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar repositório
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compilar
-        uses: docker://devkitpro/devkitppc:latest
-        with:
-          args: make
+      - name: Instalar dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make git curl
 
-      - name: Enviar boot.dol
+      - name: Instalar devkitPro
+        run: |
+          echo "baixando devkitPro..."
+          curl -L https://apt.devkitpro.org/install-devkitpro-pacman | sudo bash
+          sudo dkp-pacman -S --noconfirm gamecube-dev wii-dev
+
+      - name: Exportar variáveis
+        run: |
+          echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
+          echo "DEVKITPPC=/opt/devkitpro/devkitPPC" >> $GITHUB_ENV
+          echo "/opt/devkitpro/tools/bin" >> $GITHUB_PATH
+
+      - name: Build
+        run: make
+
+      - name: Upload boot.dol
         uses: actions/upload-artifact@v4
         with:
           name: WiiChat
