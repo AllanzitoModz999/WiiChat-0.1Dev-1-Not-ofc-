@@ -33,8 +33,8 @@ jobs:
       # ── 3. Verify artefact ───────────────────────────────────────
       - name: Verify boot.dol exists
         run: |
+          test -f boot.dol
           ls -lh boot.dol
-          file boot.dol
 
       # ── 4. Upload artefact ───────────────────────────────────────
       - name: Upload boot.dol
@@ -43,5 +43,3 @@ jobs:
           name: wiichat-boot-dol
           path: boot.dol
           retention-days: 30
-
-        # trigger refresh
