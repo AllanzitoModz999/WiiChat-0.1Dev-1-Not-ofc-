@@ -1,83 +1,120 @@
-#-------------------------------------------------------------------------------
-# WiiChat – Makefile
-# Built against devkitPPC + libogc (devkitPro)
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------
+# Clear the implicit built in rules
+#---------------------------------------------------------------------------------
 .SUFFIXES:
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------
 ifeq ($(strip $(DEVKITPPC)),)
 $(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
 endif
 
 include $(DEVKITPPC)/wii_rules
 
-#-------------------------------------------------------------------------------
-# Project settings
-#-------------------------------------------------------------------------------
-TARGET   := boot
-BUILD    := build
-SOURCES  := source
-INCLUDES :=
-DATA     :=
+#---------------------------------------------------------------------------------
+# TARGET is the name of the output
+# BUILD is the directory where object files & intermediate files will be placed
+# SOURCES is a list of directories containing source code
+# INCLUDES is a list of directories containing extra header files
+#---------------------------------------------------------------------------------
+TARGET		:=	boot
+BUILD		:=	build
+SOURCES		:=	source
+DATA		:=	data
+INCLUDES	:=
 
-#-------------------------------------------------------------------------------
-# Code-generation options
-#-------------------------------------------------------------------------------
-CFLAGS   := -g -O2 -Wall $(MACHDEP) $(INCLUDE)
-CXXFLAGS := $(CFLAGS)
-LDFLAGS  := -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
+#---------------------------------------------------------------------------------
+# options for code generation
+#---------------------------------------------------------------------------------
+CFLAGS		=	-g -O2 -Wall $(MACHDEP) $(INCLUDE)
+CXXFLAGS	=	$(CFLAGS)
+LDFLAGS		=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
-#-------------------------------------------------------------------------------
-# Libraries
-#-------------------------------------------------------------------------------
-LIBS     := -lwiiuse -lbte -logc -lm
+#---------------------------------------------------------------------------------
+# any extra libraries we wish to link with the project
+#---------------------------------------------------------------------------------
+LIBS		:=	-lwiiuse -lbte -logc -lm
 
-#-------------------------------------------------------------------------------
-# Derived lists
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------
+# list of directories containing libraries, this must be the top level containing
+# include and lib
+#---------------------------------------------------------------------------------
+LIBDIRS		:=	$(PORTLIBS)
+
+#---------------------------------------------------------------------------------
+# no real need to edit anything past this point unless you need to add additional
+# rules for different file extensions
+#---------------------------------------------------------------------------------
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-#-- We are in the project root: recurse into $(BUILD) -------------------------
+#---------------------------------------------------------------------------------
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
 
-export OUTPUT  := $(CURDIR)/$(TARGET)
-export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-                  $(foreach dir,$(DATA),$(CURDIR)/$(dir))
-export DEPSDIR := $(CURDIR)/$(BUILD)
+export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
 
-CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.c)))
-CXXFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.cpp)))
-sFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.s)))
-SFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(CURDIR)/$(dir)/*.S)))
+export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
-export OFILES := $(CXXFILES:.cpp=.o) $(CFILES:.c=.o) \
-                 $(sFILES:.s=.o) $(SFILES:.S=.o)
+#---------------------------------------------------------------------------------
+# automatically build a list of object files for our project
+#---------------------------------------------------------------------------------
+CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
-export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-                  -I$(CURDIR)/$(BUILD) \
-                  -I$(LIBOGC_INC)
+#---------------------------------------------------------------------------------
+# use CXX for linking C++ projects, CC for standard C
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(CPPFILES)),)
+	export LD	:=	$(CC)
+else
+	export LD	:=	$(CXX)
+endif
 
-export LIBPATHS := -L$(LIBOGC_LIB)
+export OFILES_BIN		:=	$(addsuffix .o,$(BINFILES))
+export OFILES_SOURCES	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(sFILES:.s=.o) $(SFILES:.S=.o)
+export OFILES			:=	$(OFILES_BIN) $(OFILES_SOURCES)
 
-.PHONY: all clean
+export HFILES			:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
 
-all: $(BUILD)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+#---------------------------------------------------------------------------------
+# build a list of include paths
+#---------------------------------------------------------------------------------
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir)) \
+					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+					-I$(CURDIR)/$(BUILD) \
+					-I$(LIBOGC_INC)
+
+#---------------------------------------------------------------------------------
+# build a list of library paths
+#---------------------------------------------------------------------------------
+export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
+					-L$(LIBOGC_LIB)
+
+.PHONY: $(BUILD) clean
 
 $(BUILD):
-	@mkdir -p $@
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	@echo Cleaning ...
-	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).dol
+	@echo clean ...
+	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol
 
+#---------------------------------------------------------------------------------
 else
 
-#-- We are inside $(BUILD): compile & link ------------------------------------
+DEPENDS	:=	$(OFILES:.o=.d)
 
-DEPENDS := $(OFILES:.o=.d)
-
+#---------------------------------------------------------------------------------
+# main targets
+#---------------------------------------------------------------------------------
 $(OUTPUT).dol: $(OUTPUT).elf
 $(OUTPUT).elf: $(OFILES)
+
+$(OFILES_SOURCES) : $(HFILES)
 
 -include $(DEPENDS)
 
 endif
+#---------------------------------------------------------------------------------
