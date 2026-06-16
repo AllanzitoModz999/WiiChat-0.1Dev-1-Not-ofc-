@@ -1,63 +1,82 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 
-/* ── Video globals ──────────────────────────────────────────────── */
-static void   *xfb     = NULL;
+static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
-/* ── Helpers ────────────────────────────────────────────────────── */
-static void video_init(void)
+static void init_video()
 {
     VIDEO_Init();
+    WPAD_Init();
+
     rmode = VIDEO_GetPreferredMode(NULL);
-    xfb   = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-    console_init(xfb, 20, 20, rmode->fbWidth, rmode->xfbHeight,
+    xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+
+    console_init(xfb, 0, 0,
+                 rmode->fbWidth,
+                 rmode->xfbHeight,
                  rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+
     VIDEO_Configure(rmode);
     VIDEO_SetNextFramebuffer(xfb);
     VIDEO_SetBlack(FALSE);
     VIDEO_Flush();
     VIDEO_WaitVSync();
-    if (rmode->viTVMode & VI_NON_INTERLACE) VIDEO_WaitVSync();
 }
 
-/* ── Entry point ────────────────────────────────────────────────── */
+static void draw_ui(int frame)
+{
+    // “limpa tela”
+    printf("\x1b[2J");
+    printf("\x1b[0;0H");
+
+    // topo estilo canal
+    printf("========================================\n");
+    printf("            WiiChat v0.1-dev1           \n");
+    printf("        Clean UI Prototype Build        \n");
+    printf("========================================\n\n");
+
+    // área principal
+    printf("  Status  : ONLINE\n");
+    printf("  Server  : Local Test\n");
+    printf("  Channel : #general\n\n");
+
+    printf("  ------------------------------------\n");
+    printf("  Welcome to WiiChat!\n");
+    printf("  This is a UI prototype.\n");
+    printf("  ------------------------------------\n\n");
+
+    // “cards” simulados
+    printf("  [ Chat Preview ]\n");
+    printf("  > Allan: Hello World\n");
+    printf("  > System: Connected\n\n");
+
+    printf("  ------------------------------------\n");
+    printf("  Controls:\n");
+    printf("    HOME - Exit\n\n");
+
+    printf("  Frame: %d\n", frame);
+}
+
 int main(int argc, char **argv)
 {
-    video_init();
-    WPAD_Init();
+    init_video();
 
-    /* ── Draw UI ───────────────────────────────────────────────── */
-    printf("\x1b[2;0H");   /* row 2, col 0 */
+    int frame = 0;
 
-    printf("  ┌─────────────────────────────────┐\n");
-    printf("  │         WiiChat v0.1-dev1        │\n");
-    printf("  │   Wii Homebrew Chat Terminal     │\n");
-    printf("  └─────────────────────────────────┘\n");
-    printf("\n");
-    printf("  Status  : Idle\n");
-    printf("  Channel : #general\n");
-    printf("\n");
-    printf("  ─────────────────────────────────────\n");
-    printf("  Controls:\n");
-    printf("    HOME  – Exit to loader\n");
-    printf("  ─────────────────────────────────────\n");
-
-    /* ── Main loop ─────────────────────────────────────────────── */
     while (1)
     {
         WPAD_ScanPads();
+        u32 pressed = WPAD_ButtonsDown(0);
 
-        u32 pressed = WPAD_ButtonsDown(0);   /* Wiimote #0 */
+        draw_ui(frame++);
 
         if (pressed & WPAD_BUTTON_HOME)
-            exit(0);
+            break;
 
         VIDEO_WaitVSync();
     }
 
-    return 0;   /* unreachable */
+    return 0;
 }
