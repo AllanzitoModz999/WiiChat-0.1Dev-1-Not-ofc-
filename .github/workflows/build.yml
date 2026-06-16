@@ -2,29 +2,44 @@ name: Build WiiChat
 
 on:
   push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build boot.dol
     runs-on: ubuntu-latest
 
+    # Official devkitPro image – ships devkitPPC + libogc pre-installed
+    container:
+      image: devkitpro/devkitppc:latest
+
     steps:
-      - name: Checkout
+      # ── 1. Checkout ──────────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build (devkitPro container)
+      # ── 2. Build ─────────────────────────────────────────────────
+      - name: Build WiiChat
         run: |
-          docker pull devkitpro/devkitppc:latest
-          docker run --rm \
-            -v ${{ github.workspace }}:/project \
-            -w /project \
-            devkitpro/devkitppc:latest \
-            bash -c "make"
+          # devkitPro sets DEVKITPRO in the container profile; make it explicit
+          export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
+          export DEVKITPPC=${DEVKITPPC:-$DEVKITPRO/devkitPPC}
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PATH"
+          make
 
+      # ── 3. Verify artefact ───────────────────────────────────────
+      - name: Verify boot.dol exists
+        run: |
+          ls -lh boot.dol
+          file boot.dol
+
+      # ── 4. Upload artefact ───────────────────────────────────────
       - name: Upload boot.dol
         uses: actions/upload-artifact@v4
         with:
-          name: WiiChat
-          path: |
-            boot.dol
-            boot.elf
+          name: wiichat-boot-dol
+          path: boot.dol
+          retention-days: 30
