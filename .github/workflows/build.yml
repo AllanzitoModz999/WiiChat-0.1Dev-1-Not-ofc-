@@ -7,36 +7,73 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+env:
+  # Pin a specific GRRLIB release tag for reproducible builds.
+  # Bump this manually when you want to pick up a newer GRRLIB release:
+  # https://github.com/GRRLIB/GRRLIB/releases
+  GRRLIB_VERSION: v4.6.1
+
 jobs:
   build:
     name: Build boot.dol
     runs-on: ubuntu-latest
 
-    # Official devkitPro image – ships devkitPPC + libogc pre-installed
+    # Official devkitPro image – ships devkitPPC + libogc + wii-portlibs
+    # (ppc-libpng, ppc-freetype, ppc-libjpeg-turbo) pre-installed.
     container:
       image: devkitpro/devkitppc:latest
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────
+      # ── 1. Checkout WiiChat ──────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Build ─────────────────────────────────────────────────
+      # ── 2. Install GRRLIB's dependencies via pacman ───────────────
+      # libfat-ogc, ppc-libpng, ppc-freetype, ppc-libjpeg-turbo usually
+      # already ship inside wii-portlibs on this image, but they are
+      # installed explicitly so this workflow keeps working even if
+      # the base image changes what it bundles by default.
+      - name: Install GRRLIB dependencies
+        run: |
+          dkp-pacman -Sy --noconfirm
+          dkp-pacman -S --needed --noconfirm libfat-ogc ppc-libpng ppc-freetype ppc-libjpeg-turbo
+
+      # ── 3. Build & install GRRLIB from source ─────────────────────
+      # GRRLIB is NOT distributed as a pacman package — there is no
+      # "ppc-grrlib" package. It must be compiled from source and
+      # installed into $(PORTLIBS)/wii, exactly as documented at
+      # https://github.com/GRRLIB/GRRLIB. This is what was missing
+      # and caused "cannot find -lgrrlib".
+      - name: Build and install GRRLIB
+        run: |
+          export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
+          export DEVKITPPC=${DEVKITPPC:-$DEVKITPRO/devkitPPC}
+          export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PATH"
+
+          git clone --branch "$GRRLIB_VERSION" --depth 1 \
+            https://github.com/GRRLIB/GRRLIB.git /tmp/GRRLIB
+
+          # libpngu is shipped as source inside the GRRLIB repo itself
+          make -C /tmp/GRRLIB/lib/pngu clean all install
+
+          # libgrrlib for Wii (default PLATFORM=wii)
+          make -C /tmp/GRRLIB/GRRLIB clean all install
+
+      # ── 4. Build WiiChat ───────────────────────────────────────────
       - name: Build WiiChat
         run: |
-          # devkitPro sets DEVKITPRO in the container profile; make it explicit
           export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
           export DEVKITPPC=${DEVKITPPC:-$DEVKITPRO/devkitPPC}
           export PATH="$DEVKITPPC/bin:$DEVKITPRO/tools/bin:$PATH"
           make
 
-      # ── 3. Verify artefact ───────────────────────────────────────
+      # ── 5. Verify artefact ───────────────────────────────────────
       - name: Verify boot.dol exists
         run: |
           test -f boot.dol
           ls -lh boot.dol
 
-      # ── 4. Upload artefact ───────────────────────────────────────
+      # ── 6. Upload artefact ───────────────────────────────────────
       - name: Upload boot.dol
         uses: actions/upload-artifact@v4
         with:
