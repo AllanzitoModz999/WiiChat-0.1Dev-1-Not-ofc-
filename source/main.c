@@ -8,8 +8,8 @@
 #include "ui.h"
 #include "pointer.h"
 
-// Estado do programa
-bool running = true;
+// Estado principal do aplicativo
+static bool running = true;
 
 int main(int argc, char **argv)
 {
@@ -19,65 +19,56 @@ int main(int argc, char **argv)
     // Inicializa Wii Remote
     WPAD_Init();
 
-    // Ativa botões + acelerômetro + IR
+    // Ativa IR + Botões + Acelerômetro
     WPAD_SetDataFormat(WPAD_CHAN_0, WPAD_FMT_BTNS_ACC_IR);
 
     // Inicializa GRRLIB
     GRRLIB_Init();
 
-    // Inicializa interface
+    // Inicializa módulos
     UI_Init();
+    Pointer_Init();
 
+    // Loop principal
     while (running)
     {
         // Atualiza controles
         WPAD_ScanPads();
 
-        // Atualiza posição do ponteiro
+        // Atualiza ponteiro IR
         Pointer_Update();
 
         // Botões pressionados
         u32 pressed = WPAD_ButtonsDown(0);
 
-        //-------------------------------------------------
-        // HOME = sair do WiiChat
-        //-------------------------------------------------
+        // HOME = sair (depois vamos trocar pelo Menu HOME)
         if (pressed & WPAD_BUTTON_HOME)
         {
             running = false;
         }
 
-        //-------------------------------------------------
-        // Limpa a tela
-        //-------------------------------------------------
+        // Limpa a tela (branco)
         GRRLIB_FillScreen(0xFFFFFFFF);
 
-        //-------------------------------------------------
         // Desenha interface
-        //-------------------------------------------------
         UI_Draw();
 
-        //-------------------------------------------------
-        // Desenha cursor
-        //-------------------------------------------------
+        // Desenha ponteiro
         Pointer_Draw();
 
-        //-------------------------------------------------
-        // Renderiza
-        //-------------------------------------------------
+        // Atualiza tela
         GRRLIB_Render();
 
         VIDEO_WaitVSync();
     }
 
-    //-----------------------------------------------------
-    // Finalização
-    //-----------------------------------------------------
-
+    // Finaliza módulos
+    Pointer_Exit();
     GRRLIB_Exit();
 
     WPAD_Shutdown();
 
+    // Retorna ao Menu do Wii
     SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 
     return 0;
