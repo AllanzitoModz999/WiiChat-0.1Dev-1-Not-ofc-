@@ -4,8 +4,8 @@
 
 #include "pointer.h"
 
-// Arquivo gerado automaticamente pelo Makefile
-#include "hand-pointer-blue.h"
+// Cabeçalho gerado automaticamente pelo PNG
+#include "hand_pointer_blue.h"
 
 static ir_t ir;
 static GRRLIB_texImg *cursor = NULL;
@@ -25,7 +25,7 @@ void Pointer_Draw(void)
     if (!ir.valid || cursor == NULL)
         return;
 
-    // Desenha a mão
+    // Desenha a mão seguindo o ponteiro IR
     GRRLIB_DrawImg(
         ir.x,
         ir.y,
@@ -50,4 +50,13 @@ float Pointer_GetY(void)
 bool Pointer_IsValid(void)
 {
     return ir.valid;
+}
+
+void Pointer_Exit(void)
+{
+    if (cursor != NULL)
+    {
+        GRRLIB_FreeTexture(cursor);
+        cursor = NULL;
+    }
 }
