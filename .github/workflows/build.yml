@@ -44,6 +44,12 @@ jobs:
       # installed into $(PORTLIBS)/wii, exactly as documented at
       # https://github.com/GRRLIB/GRRLIB. This is what was missing
       # and caused "cannot find -lgrrlib".
+      #
+      # NOTE: as of the current GRRLIB source tree, libpngu has been
+      # merged into the GRRLIB/GRRLIB module itself (it is no longer
+      # a separate lib/pngu directory), so a single
+      # "make -C GRRLIB clean all install" builds and installs
+      # everything needed.
       - name: Build and install GRRLIB
         run: |
           export DEVKITPRO=${DEVKITPRO:-/opt/devkitpro}
@@ -53,10 +59,6 @@ jobs:
           git clone --branch "$GRRLIB_VERSION" --depth 1 \
             https://github.com/GRRLIB/GRRLIB.git /tmp/GRRLIB
 
-          # libpngu is shipped as source inside the GRRLIB repo itself
-          make -C /tmp/GRRLIB/lib/pngu clean all install
-
-          # libgrrlib for Wii (default PLATFORM=wii)
           make -C /tmp/GRRLIB/GRRLIB clean all install
 
       # ── 4. Build WiiChat ───────────────────────────────────────────
