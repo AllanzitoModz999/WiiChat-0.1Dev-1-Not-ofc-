@@ -19,4 +19,6 @@ float Pointer_GetY(void);
 // Retorna se o IR está válido
 bool Pointer_IsValid(void);
 
+void Pointer_Exit(void);
+
 #endif
